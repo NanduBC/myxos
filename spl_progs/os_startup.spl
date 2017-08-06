@@ -1,0 +1,31 @@
+load(7,1);//loading exhandler
+load(8,2);//
+
+load(23,17);//loading 
+load(24,18);//int7
+
+[READY_LIST+0]=0;//init pid = 0 and READY_LIST is a const= 1536
+
+//loading 3 pages (code section)
+load(25,21);
+load(26,22);
+load(27,23);
+PTBR = 1024;
+PTLR = 4;
+
+[PTBR+0]= 25;
+[PTBR+1]= "01";
+[PTBR+2]= 26;
+[PTBR+3]= "01";
+[PTBR+4]= 27;
+[PTBR+5]= "01";
+[PTBR+6]= 28;
+[PTBR+7]= "01";
+
+[READY_LIST+1] = 2;
+breakpoint;
+SP = 3* 512;
+
+[28*512]=0;
+breakpoint;
+ireturn;
