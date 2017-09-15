@@ -1,0 +1,144 @@
+//int 1 stage 8
+
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+//extracting syscall NUMBER
+alias sysCallNum S1;
+alias fileName S2;
+
+sysCallNum = [physicalSP - 1];
+fileName = [physicalSP - 3];
+
+if(sysCallNum == 1) then  //create
+	alias i S3;
+	alias flag S4;
+	alias basicBlockNum S5;
+	//alias
+
+	i = 0;
+	while (i < 64) do
+		if([FAT + i*8] == fileName) then
+			[physicalSP - 2] = 0;
+			ireturn;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	i = 24;
+	flag = 0;
+	while (i < 448) do
+		if ([DISK_LIST + i] == 0) then
+			flag = 1;
+			basicBlockNum = i;
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	if(flag == 0) then // No free block;
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	i = 0;
+	flag = 0;
+	while(i < 64) do
+		if([FAT + i*8 + 2] == -1) then
+			flag = 1;
+			[FAT + i*8] = fileName;
+			[FAT + i*8 + 1] = 0;
+			[FAT + i*8 + 2] = basicBlockNum;
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	if(flag == 0) then
+		[physicalSP -2] = -1;
+		ireturn;
+	endif;
+
+	load(1, basicBlockNum);
+	i = 0;
+	while (i < 256) do
+		[SCRATCHPAD + i] = -1;
+		i = i + 1;
+	endwhile;
+
+	store(1, basicBlockNum);
+	[DISK_LIST + basicBlockNum] = 1;
+	store(5,19);
+	store(6,20);
+	[physicalSP - 2] = 0;
+	ireturn; 
+endif;
+
+if(sysCallNum == 4) then  //delete
+	alias i S3;
+	alias flag S4;
+	alias fat_index S5;
+
+	i = 0;
+	while (i < 64) do
+		if([FAT + i*8] == fileName) then
+			fat_index = i;
+			flag = 1;
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+	if(flag == 0) then
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+	
+	i=0;
+	while(i < 64) do
+		if ([FILE_TABLE + i*2] == fat_index) then // if file is opened
+			[physicalSP - 2] = -1;
+			ireturn;
+		endif;
+		i = i + 1;
+	endwhile;
+ 
+	i = 0;
+	alias j S6;
+	alias current_data S8;
+	while(i < 256) do
+		load(1,[FAT +8*fat_index + 2]); //loading basic block to scratchpad
+		current_data = [SCRATCHPAD + i];
+		breakpoint;
+		if(current_data >= 24 && current_data <= 447) then 
+			load(1,current_data); //loading scratchpad and data block is made empty 
+			j = 0;
+			while(j < 512) do
+				[SCRATCHPAD + j] = "";
+				j = j + 1;
+			endwhile;
+			store(1,current_data);//store back the empty data block
+			[DISK_LIST + current_data] = 0;
+		endif;
+		i = i + 1;
+	endwhile;
+	
+	//delete basic block
+	i = 0;	
+	load(1,[FAT+ 8*fat_index + 2]); //loading basic block to scratchpad
+	while(i < 256) do
+		[SCRATCHPAD + i] = "";
+		i = i + 1;
+	endwhile;
+
+	[DISK_LIST + [FAT + 8*fat_index + 2]] = 0; //erasing basic block num entry from dfl
+	[FAT + 8*fat_index] = -1; //erasing name
+	[FAT + 8*fat_index + 1] = 0;//size
+	[FAT + 8*fat_index + 2] = -1;//and basic block num from fat
+
+	//storing fat and dfl
+	store(5,19);
+	store(6,20);
+	[physicalSP - 2] = 0;
+	ireturn;
+endif;
+

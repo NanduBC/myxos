@@ -1,0 +1,82 @@
+//int 3
+
+alias physicalSP S0;
+physicalSP = ([PTBR + 2*(SP / 512)]*512 + SP % 512);
+
+alias sysCallNum S1;
+sysCallNum = [physicalSP - 1];
+
+if(sysCallNum == 6) then //seek
+	alias fileDesc S2;
+	alias lseekNew S3;
+	lseekNew = [physicalSP - 3];
+	fileDesc = [physicalSP - 4];
+	if(fileDesc < 0 || fileDesc > 7) then
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	alias currentPID S4;
+	alias currentPCB S5;
+	alias sys_index S6;
+	alias fat_index S7;
+	currentPID = (PTBR - 1024)/8;
+	currentPCB = READY_LIST + 32*currentPID;
+	if([currentPCB + 15 + fileDesc*2] == -1) then //open
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	sys_index = [currentPCB + 15 + fileDesc*2];
+	fat_index = [FILE_TABLE + sys_index*2];
+
+	alias fileSize S8;
+	fileSize = [FAT + fat_index*8 + 1];
+	if(lseekNew < 0 || lseekNew > fileSize) then
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	[currentPCB + 15 + fileDesc*2 + 1] = lseekNew;
+	[physicalSP - 2] = 0;
+	ireturn;
+endif;
+
+if (sysCallNum == 7) then //read
+
+	alias fileDesc S2;
+	fileDesc = [physicalSP - 4];
+	if(fileDesc < 0 || fileDesc > 7) then
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	alias currentPID S3;
+	alias currentPCB S4;
+	alias sys_index S5;
+	alias lseekPos S6;
+	alias fat_index S7;
+	currentPID = (PTBR - 1024)/8;
+	currentPCB = READY_LIST + 32*currentPID;
+	if([currentPCB + 15 + fileDesc*2] == -1) then //open
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	sys_index = [currentPCB + 15 + fileDesc*2];
+	lseekPos = [currentPCB + 15 + fileDesc*2 + 1];
+	fat_index = [FILE_TABLE + 2*sys_index];
+
+	load(1,[FAT + 8*fat_index + 2]);
+	if (lseekPos == [FAT + 8*fat_index + 1]) then
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+	
+	load(1,[SCRATCHPAD + lseekPos/512]); // loading data block
+	[physicalSP - 3] = [SCRATCHPAD + lseekPos % 512]; // reading from the data block
+
+	[currentPCB + 15 + fileDesc*2 + 1] = [currentPCB + 15 + fileDesc*2 + 1] + 1;
+	[physicalSP - 2] = 0;
+	ireturn;
+endif;

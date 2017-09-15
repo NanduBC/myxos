@@ -25,16 +25,64 @@ PTLR = 4;
 [PTBR+6]= 28;
 [PTBR+7]= "01";
 
-[READY_LIST+1] = 2;
-breakpoint;
-SP = 3* 512;
-
-[28*512]=0;
-breakpoint;
-
 load(11, 5);//loading
 load(12, 6);//interrupt 1
 
 load(9, 3);//loading
 load(10, 4);//timer
+
+//Stage 8
+//SysOpen File table
+
+alias counter S0;
+counter = 0;
+while (counter < 64) do
+	[FILE_TABLE + counter*2 + 0] = -1;//making the FAT index invalid
+	[FILE_TABLE + counter*2 + 1] = 0;//and file open count is set to 0
+	counter = counter + 1;
+endwhile;
+
+counter = 0;
+while (counter < 8) do
+	[READY_LIST +15 +counter*2] = -1 ;//pointer to swof table
+	[READY_LIST +15 +counter*2 + 1] = -1;//LSEEK position
+	counter = counter + 1;
+endwhile;
+
+load(13,7);// loading 
+load(14,8);//interrupt 2
+
+load(17,11);//loading
+load(18,12);//interrupt 4;
+
+load(15,9);//loading
+load(16,10);//interrupt 3;
+
+//stage 9
+
+load(19,13);//loading
+load(20,14);//interrupt 5
+
+counter = 0;
+while (counter < 64) do
+	if (counter < 29) then
+		[MEM_LIST + counter] = 1; //0-24 system reserved & 25-28 init
+	else
+		[MEM_LIST + counter] = 0;
+	endif;
+	counter = counter + 1;
+endwhile;
+
+counter = 0;
+while (counter < 32) do
+	[READY_LIST + counter*32 + 1] = 0;
+	counter = counter + 1;
+endwhile;
+
+load(21,15);//loading
+load(22,16);//interrupt 5
+
+[READY_LIST+1] = 2;
+SP = 3* 512;
+[28*512]=0;
 ireturn;

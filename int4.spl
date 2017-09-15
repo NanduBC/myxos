@@ -1,0 +1,73 @@
+//int 4 stage 8
+
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+//extracting  arguements
+alias sysCallNum S1;
+alias fileDesc S2;
+alias wordToWrite S3;
+sysCallNum = [physicalSP - 1];
+wordToWrite = [physicalSP - 3];
+fileDesc = [physicalSP - 4]; //per pro indx
+
+if(sysCallNum == 5) then  //write
+	if(fileDesc < 0 || fileDesc > 7) then
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	alias currentPID S4;
+	alias currentPCB S5;
+	alias sys_index S6;
+	alias lseek S7;
+	alias fat_index S8;
+	currentPID = (PTBR - 1024)/8;
+	currentPCB = READY_LIST + 32*currentPID;
+	if([currentPCB + 15 + fileDesc*2] == -1) then
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+
+	sys_index = [currentPCB + 15 + fileDesc*2];
+	lseek = [currentPCB + 15 + fileDesc*2 + 1];
+	fat_index = [FILE_TABLE + sys_index*2];
+
+	alias basicBlockNum S9;
+	basicBlockNum = [FAT + 8*fat_index + 2];
+	load(1,basicBlockNum); // load basic block 
+
+	alias i S10;
+	alias flag S11;
+	if([SCRATCHPAD + lseek / 512] == -1) then 
+		i = 24;
+		flag = 0;
+		while(i < 448) do
+			if([DISK_LIST + i] == 0) then
+				flag = 1;
+				[DISK_LIST + i] = 1;
+				[SCRATCHPAD + lseek/512] = i; 
+				break;
+			endif;
+			i = i + 1;
+		endwhile;
+		if(flag == 0) then
+			[physicalSP - 2] = -1;
+			ireturn;
+		endif;
+
+		store(1,basicBlockNum);
+		[FAT +fat_index*8 +1] =[FAT +fat_index*8 +1] +512;
+		//storing fat and dfl
+		store(5,19);
+		store(6,20);
+	endif;
+	alias blockNum S10;
+	blockNum = [SCRATCHPAD + lseek / 512];
+	load(1,blockNum);
+	[SCRATCHPAD + lseek % 512] = wordToWrite;
+	store(1,blockNum);
+	[currentPCB + 15 + fileDesc*2 + 1] = [currentPCB + 15 + fileDesc*2 + 1] + 1;
+	[physicalSP - 2] = 0;
+	ireturn;
+endif;

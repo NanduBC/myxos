@@ -1,0 +1,122 @@
+//int 2 stage 8
+
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+//extracting syscall NUMBER
+alias sysCallNum S1;
+alias arg S2;
+sysCallNum = [physicalSP - 1];
+arg = [physicalSP - 3];
+
+if(sysCallNum == 2) then  //open
+	alias i S3;
+	alias fat_index S4;
+	alias flag S5;
+
+	i = 0;
+	flag = 0;
+	while (i < 64) do
+		if([FAT + i*8] == arg) then // checking for filename in memory copy of FAT
+			fat_index = i;
+			flag = 1;
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	if(flag == 0) then
+		[physicalSP - 2] = -1 ;//Fat entry not found
+		ireturn;
+	endif;
+
+	i=0;
+	flag = 0;
+	alias sys_index S6;
+	while(i < 64) do
+		if ([FILE_TABLE + i*2] == fat_index) then //checking in the swof table for fat
+			flag = 1;
+			sys_index = i;
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	if(flag == 0) then //if not present create new swof entry
+		i = 0;
+		alias flag1 S7;
+		flag1 = 0;
+		while (i < 64) do 
+			if([FILE_TABLE + i*2] == -1) then
+				flag1 = 1;
+				sys_index = i;
+				break;
+			endif;
+			i = i + 1;
+		endwhile;
+		if(flag1 == 0) then
+			[physicalSP - 2] = -1 ;//no free swof entry
+			ireturn;
+		endif;
+	endif;
+
+	alias currentPID S7;
+	alias currentPCB S8;
+	alias per_pro_index S9;
+	currentPID = (PTBR -1024)/8;
+	currentPCB = READY_LIST + 32*currentPID;
+	i = 0;
+	flag = 0;
+	while(i < 8) do
+		if([currentPCB + 15 + i*2] == -1) then
+			flag = 1;
+			per_pro_index = i;
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+	if(flag == 0) then
+		[physicalSP - 2] = -1; //no free per pro entry
+		ireturn;
+	endif;
+
+	[currentPCB + 15 + 2*per_pro_index + 0] = sys_index;
+	[currentPCB + 15 + 2*per_pro_index + 1] = 0; //set lseek to 0
+
+	[FILE_TABLE + sys_index*2 + 0] = fat_index;
+	[FILE_TABLE + sys_index*2 + 1] = [FILE_TABLE + sys_index*2+ 1] + 1;
+
+	[physicalSP - 2] = per_pro_index;
+	ireturn;
+
+endif;
+
+if(sysCallNum == 3) then  //close
+	if(arg < 0 || arg > 7) then
+		[physicalSP - 2] = -1;
+		ireturn;
+	else
+		alias currentPID S3;
+		alias currentPCB S4;
+		alias per_pro_index S5;
+		alias sys_index S6;
+		alias fat_index S7;
+		currentPID = (PTBR - 1024) / 8;
+		currentPCB = READY_LIST + 32*currentPID;
+		per_pro_index = arg;
+		if([currentPCB + 15 + 2*per_pro_index] == -1) then
+			[physicalSP - 2] = -1;
+			ireturn;
+		endif;
+		sys_index = [currentPCB + 15 +2*per_pro_index];
+		[FILE_TABLE + sys_index*2 + 1] = [FILE_TABLE + sys_index*2 +1] - 1;
+		if([FILE_TABLE + sys_index*2 + 1] == 0) then
+			[FILE_TABLE + sys_index*2] = -1;
+		endif;
+		[currentPCB + 15 + 2*per_pro_index] = -1;
+		[currentPCB + 15 + 2*per_pro_index + 1] = -1;
+		[physicalSP - 2] = 0;
+		ireturn;
+		
+	endif;
+endif;

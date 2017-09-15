@@ -1,6 +1,5 @@
 alias currentPID S0;
 currentPID = (PTBR - 1024) / 8;
-breakpoint;
 alias currentPCB S1;
 currentPCB = READY_LIST + 32 * currentPID;
 
@@ -27,18 +26,17 @@ physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
 [currentPCB + 14] = R7;
 
 alias newPID S3;
+newPID = currentPID + 1;
 alias newPCB S4;
-newPCB = currentPCB + 32;
-
-while (1) do
-	if (newPCB > 2559) then
-	newPCB = 1536;
+while(1) do
+	if (newPID == 32) then
+		newPID=0;
 	endif;
-	if([newPCB +1] == 1) then
-		
+	newPCB = READY_LIST + 32*newPID;
+	if ([newPCB + 1] == 1) then
 		break;
 	endif;
-	newPCB = newPCB + 32;
+	newPID = newPID+1;
 endwhile;
 
 BP = [newPCB + 2];
@@ -59,8 +57,7 @@ R7 = [newPCB + 14];
 SP = SP + 1; 
 alias newphysicalSP S2; 
 newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
-[ newphysicalSP ] = [ newPCB + 4 ]; //setting SP
+[ newphysicalSP ] = [ newPCB + 4 ]; //setting IP
 
 [newPCB + 1] = 2;
-breakpoint;
 ireturn;
