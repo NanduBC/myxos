@@ -8,7 +8,7 @@ load(5,19);//loading FAT
 load(6,20);//loading DF
 
 [READY_LIST+0]=0;//init pid = 0 and READY_LIST is a const= 1536
-
+[READY_LIST+31]=0;//init ppid = 0
 //loading 3 pages (code section)
 load(25,21);
 load(26,22);
@@ -27,6 +27,7 @@ PTLR = 4;
 
 load(11, 5);//loading
 load(12, 6);//interrupt 1
+
 
 load(9, 3);//loading
 load(10, 4);//timer

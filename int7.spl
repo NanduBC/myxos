@@ -1,0 +1,179 @@
+//int7
+
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNum S1;
+sysCallNum = [physicalSP - 1];
+
+if(sysCallNum == 10) then //exit
+	alias i S2;
+	alias flag S3;
+	i = 0;
+	flag = 1;
+
+	while (i < 32) do
+		if ([READY_LIST + 32*i + 1] == 1) then
+			flag = 0;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	if (flag == 1) then
+		halt;
+	endif;
+
+	alias currentPCB S4;
+	alias sys_index S5;
+	alias currentPID S6;
+	currentPID = (PTBR - 1024)/8;
+	currentPCB = READY_LIST + 32*currentPID;
+	i = 0;
+	while (i < 8) do   //closing all open instances of the file opened by the current process
+		sys_index = [currentPCB + 15 + 2*i];
+		[FILE_TABLE + sys_index*2 + 1] = [FILE_TABLE + sys_index*2 +1] - 1;
+		if([FILE_TABLE + sys_index*2 + 1] == 0) then
+			[FILE_TABLE + sys_index*2] = -1;
+		endif;
+		[currentPCB + 15 + 2*i] = -1;
+		[currentPCB + 15 + 2*i + 1] = -1;
+		i = i + 1;
+	endwhile;
+
+	[currentPCB + 1] = 0; //setting the current process state to 0
+
+	i = 0;
+	while (i < 4) do
+		[MEM_LIST +[PTBR + 2*i]] = 0;
+		[PTBR + 2*i] = -1;
+		[PTBR + 2*i + 1] = "00";
+		i = i + 1;
+	endwhile;
+
+	i = currentPID + 1;
+	alias newPID S7;
+	alias newPCB S8;
+	while(1) do
+		if (i == 32) then
+			i=0;
+		endif;
+		if ([READY_LIST + 32*i + 1] == 1) then
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	newPID = i;
+	newPCB = READY_LIST + 32*i;
+//setting reg vals
+	BP = [newPCB + 2];
+	SP = [newPCB + 3];
+
+	PTBR = [newPCB + 5];
+	PTLR = [newPCB + 6];
+
+	R0 = [newPCB + 7];
+	R1 = [newPCB + 8];
+	R2 = [newPCB + 9];
+	R3 = [newPCB + 10];
+	R4 = [newPCB + 11];
+	R5 = [newPCB + 12];
+	R6 = [newPCB + 13];
+	R7 = [newPCB + 14];
+
+	i = 0;
+	while(i < 32) do
+		if([READY_LIST + 32*i + 1] == 100 + [READY_LIST + 32*i]) then
+			[READY_LIST + 32*i + 1] = 1;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	SP = SP + 1; 
+	alias newphysicalSP S2; 
+	newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
+	[ newphysicalSP ] = [ newPCB + 4 ]; //setting IP
+
+	[newPCB + 1] = 2;
+	ireturn;
+endif;
+
+if(sysCallNum == 13) then //wait
+	alias waitingPID S2;
+	waitingPID = [physicalSP - 3];
+	alias currentPCB S3;
+	currentPCB = READY_LIST + 32*waitingPID;
+
+	if([currentPCB + 1] == 0 || [currentPCB + 1] == 2) then
+		[physicalSP - 2] = -1;  //if process is running or terminated return -1;
+		ireturn;
+	endif; 
+
+	[currentPCB + 1] = 100 + waitingPID;
+	[currentPCB + 2] = BP;
+	[currentPCB + 3] = SP - 1;
+	[currentPCB + 4] = [physicalSP];
+	[currentPCB + 5] = PTBR;
+	[currentPCB + 6] = PTLR;
+	[currentPCB + 7] = R0;
+	[currentPCB + 8] = R1;
+	[currentPCB + 9] = R2;
+	[currentPCB + 10] = R3;
+	[currentPCB + 11] = R4;
+	[currentPCB + 12] = R5;
+	[currentPCB + 13] = R6;
+	[currentPCB + 14] = R7;
+
+	i = waitingPID + 1;
+	alias newPID S4;
+	alias newPCB S5;
+
+	while(1) do
+		if (i == 32) then
+			i=0;
+		endif;
+		if ([READY_LIST + 32*i + 1] == 1) then
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	newPID = i;
+	newPCB = READY_LIST + 32*i;
+//setting reg vals
+	BP = [newPCB + 2];
+	SP = [newPCB + 3];
+
+	PTBR = [newPCB + 5];
+	PTLR = [newPCB + 6];
+
+	R0 = [newPCB + 7];
+	R1 = [newPCB + 8];
+	R2 = [newPCB + 9];
+	R3 = [newPCB + 10];
+	R4 = [newPCB + 11];
+	R5 = [newPCB + 12];
+	R6 = [newPCB + 13];
+	R7 = [newPCB + 14];
+	SP = SP + 1; 
+	alias newphysicalSP S2; 
+	newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
+	[ newphysicalSP ] = [ newPCB + 4 ]; //setting IP
+
+	[newPCB + 1] = 2;
+
+	[physicalSP - 2] = 0; 
+	ireturn;
+endif;
+
+if(sysCallNum == 14) then //signal
+	i = 0;
+	while(i < 32) do
+		if([READY_LIST + 32*i + 1] == 100 + [READY_LIST + 32*i]) then
+			[READY_LIST + 32*i + 1] = 1;
+		endif;
+		i = i + 1;
+	endwhile;
+	[physicalSP - 2] = 0;
+	ireturn;
+endif;

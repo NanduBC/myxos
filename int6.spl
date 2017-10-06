@@ -1,0 +1,163 @@
+//int 6
+alias physicalSP S0;
+physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+
+alias sysCallNum S1;
+sysCallNum = [physicalSP - 1];
+
+if( sysCallNum == 9) then //exec
+	alias arg1 S2;                               
+	arg1 = [physicalSP - 3];
+
+	alias currentPID S3;
+	currentPID = (PTBR - 1024) / 8;
+
+	alias file S4;
+	alias fat_index S5;
+	alias b_block S6;
+	alias curr_blocks S7;
+	alias new_blocks S8;
+	alias swoft_index S9;
+	alias currentPCB S10;
+	currentPCB = READY_LIST + 32 * currentPID;
+
+	alias i S15;
+	alias j S14;
+	j = 0;
+	alias flag S13;
+	flag = 0;
+	i = 0;
+	fat_index = -1;
+	b_block = -1;
+
+	while(i < 64) do
+		file = [FAT + 8 * i];
+		if(file == arg1) then
+			fat_index = i;
+			break;
+		endif;
+		i = i+1;
+	endwhile;
+
+	if(fat_index == -1) then
+		[physicalSP - 2] = -1;  //file not found
+		print "file not found";
+		ireturn;
+	endif;
+
+	b_block = [FAT + 8 * fat_index + 2];
+	load (1,b_block);
+
+	i = 0;
+	new_blocks = 0;
+	while(i < 3) do
+		if( [SCRATCHPAD + i] != -1) then
+			new_blocks = new_blocks + 1;
+		endif;
+
+		i = i+1;
+	endwhile;
+
+	curr_blocks = 0;
+	while(i < 3) do
+		if ([PTBR + 2* i + 1] == "01" || [PTBR + 2* i + 1] == "11") then
+			curr_blocks = curr_blocks + 1;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	i = 29;
+	j = 0;
+	flag = 0;
+	while(i < 64) do
+		if([MEM_LIST + i] == 0) then
+			j = j + 1;
+		endif;
+		if((new_blocks - curr_blocks) <= j) then
+			flag = 1;
+			break;
+		endif;
+		i = i + 1;
+	endwhile;
+
+	if(flag == 0) then 
+		[physicalSP - 2] = -1;                  //no free pages for child
+		print "no free Pages";
+		ireturn;
+	endif;
+
+	i = 0;
+	while(i < 3) do
+		[PTBR + 2*i + 1] = "00"; //all page tabels except stack is made invalid
+		[MEM_LIST + [PTBR + 2*i]] = 0;//free the pages except stack
+		i = i + 1;
+	endwhile;
+
+	i = 0;
+	while (i < new_blocks) do
+		j = 24;
+	    flag = 0;
+	    while(j < 64 && flag == 0) do	
+			if( [MEM_LIST + j] == 0) then
+				[MEM_LIST + j] = 1;                //setting the df of as 1
+				[PTBR + 2*i] = j;                  //updating page table entry
+				[PTBR + 2*i + 1] = "01";
+				load(j,[SCRATCHPAD + i]);
+				flag = 1;
+			endif;
+			j = j+1;
+		endwhile;
+		i = i+1;
+	endwhile;
+
+	i = 0;
+	while (i < 8) do
+		swoft_index = currentPCB + 15 + 2*i;
+		if ([swoft_index] != -1) then
+			j = FILE_TABLE + 2 * [swoft_index] + 1;  
+// decrementing file count
+			[j] = [j] - 1;
+			if ([j] == 0) then                     // if file open count is 0 entry is invalid
+				[j - 1] = -1;
+			endif;
+			[swoft_index] = -1;
+			[swoft_index + 1] = -1;
+		endif;
+	    i = i+1;
+	endwhile;
+
+	SP = 3 * 512;
+	physicalSP = [PTBR + 6] * 512;                 // physical address of the stack ;SP/512 = 3 
+	[physicalSP] = 0;
+	ireturn;
+
+endif;
+
+if(sysCallNum == 11) then    //getpid
+	alias currentPID S2;
+	currentPID = (PTBR - 1024)/8;
+	if (currentPID < 0 || currentPID >=64) then
+		[physicalSP - 2] = -1;
+		ireturn;
+	endif;
+	[physicalSP - 2] = currentPID;
+	ireturn;
+endif;
+
+if (sysCallNum == 12) then    //getppid
+	alias currentPID S2;
+	currentPID = (PTBR - 1024)/8;
+	alias currentPCB S3;
+	currentPCB = READY_LIST + 32*currentPID;
+	[physicalSP - 2] = [currentPCB + 31];
+	ireturn;
+endif;
+
+
+
+
+
+
+
+
+

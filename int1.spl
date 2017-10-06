@@ -37,7 +37,7 @@ if(sysCallNum == 1) then  //create
 	endwhile;
 
 	if(flag == 0) then // No free block;
-		[physicalSP - 2] = -1;
+		[physicalSP - 2] = "-1"; 
 		ireturn;
 	endif;
 
@@ -55,7 +55,7 @@ if(sysCallNum == 1) then  //create
 	endwhile;
 
 	if(flag == 0) then
-		[physicalSP -2] = -1;
+		[physicalSP -2] = "-1";//no fat
 		ireturn;
 	endif;
 
