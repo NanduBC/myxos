@@ -9,20 +9,17 @@ load(6,20);//loading DF
 
 [READY_LIST+0]=0;//init pid = 0 and READY_LIST is a const= 1536
 [READY_LIST+31]=0;//init ppid = 0
-//loading 3 pages (code section)
-load(25,21);
-load(26,22);
-load(27,23);
+
 PTBR = 1024;
 PTLR = 4;
 
-[PTBR+0]= 25;
-[PTBR+1]= "01";
-[PTBR+2]= 26;
-[PTBR+3]= "01";
-[PTBR+4]= 27;
-[PTBR+5]= "01";
-[PTBR+6]= 28;
+[PTBR+0]= 21;
+[PTBR+1]= "00";
+[PTBR+2]= 22;
+[PTBR+3]= "00";
+[PTBR+4]= 23;
+[PTBR+5]= "00";
+[PTBR+6]= 25; //only stack is allocated a mem page
 [PTBR+7]= "01";
 
 load(11, 5);//loading
@@ -64,10 +61,13 @@ load(16,10);//interrupt 3;
 load(19,13);//loading
 load(20,14);//interrupt 5
 
+load(21,15);//loading
+load(22,16);//interrupt 6
+
 counter = 0;
 while (counter < 64) do
-	if (counter < 29) then
-		[MEM_LIST + counter] = 1; //0-24 system reserved & 25-28 init
+	if (counter < 26) then
+		[MEM_LIST + counter] = 1; //0-24 system reserved & 25 stack of init
 	else
 		[MEM_LIST + counter] = 0;
 	endif;
@@ -80,8 +80,12 @@ while (counter < 32) do
 	counter = counter + 1;
 endwhile;
 
-load(21,15);//loading
-load(22,16);//interrupt 5
+counter = 448;
+while (counter < 512) do
+	[DISK_LIST + counter] = 0;
+	counter = counter +	1;
+endwhile;
+store(6,20);//updating df after clearing swap area
 
 [READY_LIST+1] = 2;
 SP = 3* 512;

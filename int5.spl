@@ -2,13 +2,12 @@
 
 alias physicalSP S0;
 physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
-breakpoint;
 
 if ([physicalSP - 1] == 8) then //fork
 	alias count S1;
 	alias child_pid S2;
 	alias flag S3;
-	alias parent_pid S14;
+	alias parent_pid S4;
 	parent_pid = (PTBR - 1024)/8;
 	count = 0;
 	flag =0;
@@ -30,67 +29,53 @@ if ([physicalSP - 1] == 8) then //fork
 	[READY_LIST + child_pid*32] = child_pid;
 
 	count = 0 ;
-	alias validCount S4;
-	validCount = 0;
-
-	while(count < 4) do
-		if([PTBR+ count*2 +1] == "01" || [PTBR+ count*2 +1] == "11" ) then
-			validCount = validCount + 1;
-		endif;
-		count = count + 1;
-	endwhile;
-
-	alias mem_free_count S5;
-	count = 0;
-	mem_free_count = 0;
+	flag = 0;
+	alias mem_free S5;
+	mem_free = 0;
 
 	while (count < 64) do
 		if([MEM_LIST + count] == 0) then
-			mem_free_count = mem_free_count + 1;
+			mem_free = count;
+			flag = 1;
+			[MEM_LIST + mem_free] = 1; //updating mem_free for stack 
+			break;
 		endif;
 		count = count + 1;
 	endwhile;
 
-	if (validCount > mem_free_count) then
+	if (flag == 0) then
 		[physicalSP - 2] = -1;  //insufficient memory
 		ireturn;
 	endif;
 
-	alias count2 S6;
-	alias newPTBR S7;
+	count = 0;
+	while(count < 512) do
+		[mem_free*512 + count] = [[PTBR + 6]*512 + count];
+		count = count + 1;
+	endwhile;
+
+	alias newPTBR S6;
 	newPTBR = 1024 + 8*child_pid; //use PAGE_TABLE instead of 1024
 
+	[newPTBR + 6] = mem_free; //stack is set
+	[newPTBR + 7] = "01";
+
+	alias newPCB S7;
+	newPCB = READY_LIST + 32*child_pid;
+
 	count = 0;
-	count2 = 0;
-
-	while (count < 64 && count2 < 4) do
-		if([MEM_LIST + count] == 0) then
-		
-			if([PTBR + 2*count2 + 1] == "01" || [PTBR + 2*count2 + 1] == "11") then
-				alias i S8;
-				i = 0;
-
-
-				while (i < 512) do
-					[count * 512 +i ]= [[PTBR + 2*count2]*512 + i];
-					i = i + 1;  
-				endwhile;
-			 	[newPTBR + 2*count2] = count;
-			 	[newPTBR + 2*count2 + 1] = [PTBR + 2*count2 + 1];
-			 	[MEM_LIST + count] = 1; //marking the page as 1 in MEM_LIST
-	
-			endif;
-			if([PTBR + 2*count2 + 1] == "00") then
-				[newPTBR + 2*count2 ] = -1;
-				[newPTBR + 2*count2 + 1] = "00";
-			endif;
-			count2 = count2 + 1;
+	while(count < 3) do
+		[newPTBR + 2*count] = [PTBR + 2*count];
+		[newPTBR + 2*count + 1] = [PTBR + 2*count + 1];
+		if([newPTBR + 2*count + 1] == "01" || [newPTBR + 2*count + 1] == "11") then
+			[MEM_LIST + [PTBR + 2*count]] = [MEM_LIST + [PTBR + 2*count]] + 1;
+		endif;
+		if([newPTBR + 2*count + 1] == "00" && [newPTBR + 2*count] >= 448) then
+			[DISK_LIST + [PTBR + 2*count]] = [DISK_LIST + [PTBR + 2*count]] + 1;
+			store(6,20);//storing DF back to the disk
 		endif;
 		count = count + 1;
-	endwhile;	
-
-	alias newPCB S9;
-	newPCB = READY_LIST + 32*child_pid;
+	endwhile;
 
 	[newPCB  + 2] = BP; 
 	[newPCB  + 3] = SP -1;//setting SP;
@@ -125,5 +110,4 @@ if ([physicalSP - 1] == 8) then //fork
 
 	[[newPTBR + 2*(SP-1)/512]* 512 + (SP -1)%512 - 1] = -2; //child return value
 	ireturn;
-
 endif;
