@@ -20,7 +20,7 @@ if(sysCallNum == 6) then //seek
 	alias currentPCB S5;
 	alias sys_index S6;
 	alias fat_index S7;
-	currentPID = (PTBR - 1024)/8;
+	currentPID = (PTBR - PAGE_TABLE)/8;
 	currentPCB = READY_LIST + 32*currentPID;
 	if([currentPCB + 15 + fileDesc*2] == -1) then //open
 		[physicalSP - 2] = -1;
@@ -56,7 +56,7 @@ if (sysCallNum == 7) then //read
 	alias sys_index S5;
 	alias lseekPos S6;
 	alias fat_index S7;
-	currentPID = (PTBR - 1024)/8;
+	currentPID = (PTBR - PAGE_TABLE)/8;
 	currentPCB = READY_LIST + 32*currentPID;
 	if([currentPCB + 15 + fileDesc*2] == -1) then //open
 		[physicalSP - 2] = -1;

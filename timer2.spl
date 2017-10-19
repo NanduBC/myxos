@@ -1,5 +1,5 @@
 alias currentPID S0;
-currentPID = (PTBR - 1024) / 8;
+currentPID = (PTBR - PAGE_TABLE) / 8;
 alias currentPCB S1;
 currentPCB = READY_LIST + 32 * currentPID;
 

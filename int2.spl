@@ -63,7 +63,7 @@ if(sysCallNum == 2) then  //open
 	alias currentPID S7;
 	alias currentPCB S8;
 	alias per_pro_index S9;
-	currentPID = (PTBR -1024)/8;
+	currentPID = (PTBR - PAGE_TABLE)/8;
 	currentPCB = READY_LIST + 32*currentPID;
 	i = 0;
 	flag = 0;

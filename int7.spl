@@ -5,7 +5,7 @@ alias sysCallNum S1;
 sysCallNum = [physicalSP - 1];
 
 alias currentPID S2;
-currentPID=(PTBR - 1024)/8;
+currentPID=(PTBR - PAGE_TABLE)/8;
 
 alias currentPCB S3;
 currentPCB=READY_LIST + 32*currentPID;
@@ -39,7 +39,7 @@ if (sysCallNum == 10) then
 		halt;
 	endif;
 
-	currentPID=(PTBR - 1024)/8;
+	currentPID=(PTBR - PAGE_TABLE)/8;
 	currentPCB=READY_LIST + 32*currentPID;
 
 	alias counter S6;

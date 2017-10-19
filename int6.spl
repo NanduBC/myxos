@@ -10,7 +10,7 @@ if( sysCallNum == 9) then //exec
 	arg1 = [physicalSP - 3];
 
 	alias currentPID S3;
-	currentPID = (PTBR - 1024) / 8;
+	currentPID = (PTBR - PAGE_TABLE) / 8;
 	alias fat_index S4;
 	alias b_block S5;
 	alias sys_index S6;
@@ -84,7 +84,7 @@ endif;
 
 if(sysCallNum == 11) then    //getpid
 	alias currentPID S2;
-	currentPID = (PTBR - 1024)/8;
+	currentPID = (PTBR - PAGE_TABLE)/8;
 	if (currentPID < 0 || currentPID >=64) then
 		[physicalSP - 2] = -1;
 		ireturn;
@@ -95,7 +95,7 @@ endif;
 
 if (sysCallNum == 12) then    //getppid
 	alias currentPID S2;
-	currentPID = (PTBR - 1024)/8;
+	currentPID = (PTBR - PAGE_TABLE)/8;
 	alias currentPCB S3;
 	currentPCB = READY_LIST + 32*currentPID;
 	[physicalSP - 2] = [currentPCB + 31];

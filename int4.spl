@@ -22,7 +22,7 @@ if(sysCallNum == 5) then  //write
 	alias sys_index S6;
 	alias lseek S7;
 	alias fat_index S8;
-	currentPID = (PTBR - 1024)/8;
+	currentPID = (PTBR - PAGE_TABLE)/8;
 	currentPCB = READY_LIST + 32*currentPID;
 	if([currentPCB + 15 + fileDesc*2] == -1) then
 		[physicalSP - 2] = -1;
