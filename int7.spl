@@ -1,21 +1,25 @@
+
 alias physicalSP S0;
 physicalSP = ([PTBR + 2*(SP/512)]*512) + (SP%512);
 
-alias sysCallNum S1;
-sysCallNum = [physicalSP - 1];
+alias sysCallNo S1;
+sysCallNo = [physicalSP - 1];
 
 alias currentPID S2;
-currentPID=(PTBR - PAGE_TABLE)/8;
+currentPID=(PTBR - 1024)/8;
 
 alias currentPCB S3;
 currentPCB=READY_LIST + 32*currentPID;
 
+alias newPID S4;
+newPID = 0;
+alias newPCB S5;
 
-if (sysCallNum == 10) then
+alias counter S6;
+alias FileIndex S7;
+if (sysCallNo == 10) then
+	
 
-	alias newPID S4;
-	newPID = 0;
-	alias newPCB S5;
 	while(newPID < 32) do
 		newPCB = READY_LIST + 32*newPID;
 		if ([newPCB + 1] == (100 + currentPID)) then
@@ -39,11 +43,12 @@ if (sysCallNum == 10) then
 		halt;
 	endif;
 
-	currentPID=(PTBR - PAGE_TABLE)/8;
+
+
+	currentPID=(PTBR - 1024)/8;
 	currentPCB=READY_LIST + 32*currentPID;
 
-	alias counter S6;
-	alias FileIndex S7;
+
 	counter=0;
 	while(counter < 8) do
 		FileIndex=[currentPCB + 2*counter + 15];
@@ -62,6 +67,8 @@ if (sysCallNum == 10) then
 		[currentPCB + 2*counter + 16]=-1;
 		counter=counter+1;
 	endwhile;
+
+
 
 	[currentPCB + 1]=0;
 
@@ -84,20 +91,24 @@ if (sysCallNum == 10) then
 	endwhile;
 endif;
 
-if(sysCallNum == 13) then //wait
-	alias waitingPID S4;
-	waitingPID = [physicalSP - 3];
-	alias waitingPCB S5;
-	waitingPCB = READY_LIST + 32*waitingPID;
-	alias i S6;
-	if([waitingPCB + 1] == 0 || [waitingPCB + 1] == 2) then
-		[physicalSP - 2] = -1;  //if process is running or terminated return -1;
-		ireturn;
-	endif; 
+if (sysCallNo == 13) then
+	alias Wpid S4;
+	Wpid=[physicalSP - 3];
 
-	[currentPCB + 1] = 100 + waitingPID;
+	alias Wpcb S5;
+	Wpcb = READY_LIST + 32*Wpid;
+
+
+	
+
+	if ((Wpid == currentPID) || ([Wpcb + 1] == 0)) then
+		[physicalSP - 2]=-1;
+		ireturn;
+	endif;
+
+	[currentPCB + 1] = 100 + Wpid;
 	[currentPCB + 2] = BP;
-	[currentPCB + 3] = SP - 1;
+	[currentPCB + 3] = SP-1;
 	[currentPCB + 4] = [physicalSP];
 	[currentPCB + 5] = PTBR;
 	[currentPCB + 6] = PTLR;
@@ -109,46 +120,66 @@ if(sysCallNum == 13) then //wait
 	[currentPCB + 12] = R5;
 	[currentPCB + 13] = R6;
 	[currentPCB + 14] = R7;
-	[physicalSP - 2] = 0;
+
+	[physicalSP - 2]=0;
 endif;
 
-if(sysCallNum == 14) then //signal
-	alias i S4;
-	i = 0;
-	while(i < 32) do
-		if([READY_LIST + 32*i + 1] == 100 + currentPID) then
-			[READY_LIST + 32*i + 1] = 1;
-		endif;
-		i = i + 1;
-	endwhile;
-	[physicalSP - 2] = 0;
-endif;
 
-if(sysCallNum == 10 || sysCallNum == 13) then
-	alias i S7;
-	i = currentPID + 1;
-	alias newPID S8;
-	alias newPCB S9;
+if ((sysCallNo == 10) || (sysCallNo == 13)) then
 
+	
+	newPID = currentPID + 1;
+	
 	while(1) do
-		if (i == 32) then
-			i=0;
+		if (newPID == 32) then
+			newPID=0;
 		endif;
-		if ([READY_LIST + 32*i + 1] == 1) then
+		newPCB = READY_LIST + 32*newPID;
+		if ([newPCB + 1] == 1) then
 			break;
 		endif;
-		i = i + 1;
+		newPID = newPID+1;
 	endwhile;
 
-	newPID = i;
-	newPCB = READY_LIST + 32*i;
-//setting reg vals
+
+counter = 25;
+
+if( [ [newPCB+5] + 6] > 447) then
+
+	while( counter < 64 ) do
+		if( [MEM_LIST + counter] ==0) then
+			load(counter,[[newPCB + 5]+ 6]);
+			[DISK_LIST + [ [newPCB + 5]+ 6]]=0;
+			store(6,20);
+			[MEM_LIST + counter]=1;
+			[[newPCB + 5] + 6]=counter;
+			[[newPCB + 5] + 7]="11";
+			break;
+		endif;
+		counter = counter + 1;
+	endwhile;
+
+	if ( counter == 64 ) then
+		 load(1,[[newPCB + 5] +6]);
+		 store([PTBR + 6],[[newPCB + 5]+6]);
+		 alias counter2 S14;
+		 counter2=0;
+		 while(counter2 <512)do
+		 	[[PTBR +6]*512+counter2]=[SCRATCHPAD + counter2];
+		 	counter2= counter2 +1;
+		 endwhile;
+		 counter2=[[newPCB+5]+6];
+		 [[newPCB+5]+6]=[PTBR+6];
+		 [[newPCB+5]+7]="11";
+		 [PTBR + 6]=counter2;
+		 [PTBR + 7]="00";
+	 endif;
+endif;
+
 	BP = [newPCB + 2];
 	SP = [newPCB + 3];
-
 	PTBR = [newPCB + 5];
 	PTLR = [newPCB + 6];
-
 	R0 = [newPCB + 7];
 	R1 = [newPCB + 8];
 	R2 = [newPCB + 9];
@@ -158,12 +189,11 @@ if(sysCallNum == 10 || sysCallNum == 13) then
 	R6 = [newPCB + 13];
 	R7 = [newPCB + 14];
 
-	SP = SP + 1; 
-	alias newphysicalSP S10; 
-	newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
-	[ newphysicalSP ] = [ newPCB + 4 ]; //setting IP
-
+	SP = SP + 1;
+	physicalSP = ([PTBR + 2*(SP/512)]*512) + (SP%512);
+	[physicalSP] = [newPCB + 4];
 	[newPCB + 1] = 2;
 endif;
+
 
 ireturn;

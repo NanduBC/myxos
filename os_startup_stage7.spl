@@ -89,5 +89,5 @@ store(6,20);//updating df after clearing swap area
 
 [READY_LIST+1] = 2;
 SP = 3* 512;
-[28*512]=0;
+[25*512]=0;
 ireturn;

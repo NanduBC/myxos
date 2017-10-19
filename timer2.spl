@@ -1,18 +1,18 @@
+
 alias currentPID S0;
-currentPID = (PTBR - PAGE_TABLE) / 8;
+currentPID = (PTBR - 1024)/8;
+
 alias currentPCB S1;
-currentPCB = READY_LIST + 32 * currentPID;
+currentPCB = READY_LIST + 32*currentPID;
 
-[currentPCB + 1] = 1; //Setting State to Ready
-
+[currentPCB + 1] = 1; // Set STATE to READY
 [currentPCB + 2] = BP;
-[currentPCB + 3] = SP - 1;
+[currentPCB + 3] = SP-1;
 
 alias physicalSP S2;
-physicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512);
+physicalSP = ([PTBR + 2*(SP/512)]*512) + (SP%512);
 
-[currentPCB + 4] = [physicalSP];// IP stored is extracted from kernel mode
-
+[currentPCB + 4] = [physicalSP]; // Save IP of current process in the PCB
 [currentPCB + 5] = PTBR;
 [currentPCB + 6] = PTLR;
 
@@ -39,12 +39,46 @@ while(1) do
 	newPID = newPID+1;
 endwhile;
 
+
+alias counter S5;
+counter = 25;
+
+if( [ [newPCB+5] + 6] > 447) then
+	
+	while( counter < 64 ) do
+		if( [MEM_LIST + counter] ==0) then
+			load(counter,[[newPCB + 5]+ 6]);
+			[DISK_LIST + [ [newPCB + 5]+ 6]]=0;
+			store(6,20);
+			[MEM_LIST + counter]=1;
+			[[newPCB + 5] + 6]=counter;
+			[[newPCB + 5] + 7]="11";
+			break;
+		endif;
+		counter = counter + 1;
+	endwhile;
+
+	if ( counter == 64 ) then
+		 load(1,[[newPCB + 5] +6]);
+		 store([PTBR + 6],[[newPCB + 5]+6]);
+		 alias counter2 S6;
+		 counter2=0;
+		 while(counter2 <512)do
+		 	[[PTBR +6]*512+counter2]=[SCRATCHPAD + counter2];
+		 	counter2= counter2 +1;
+		 endwhile;
+		 counter2=[[newPCB+5]+6];
+		 [[newPCB+5]+6]=[PTBR+6];
+		 [[newPCB+5]+7]="11";
+		 [PTBR + 6]=counter2;
+		 [PTBR + 7]="00";
+	 endif;
+endif;
+
 BP = [newPCB + 2];
 SP = [newPCB + 3];
-
 PTBR = [newPCB + 5];
 PTLR = [newPCB + 6];
-
 R0 = [newPCB + 7];
 R1 = [newPCB + 8];
 R2 = [newPCB + 9];
@@ -54,10 +88,12 @@ R5 = [newPCB + 12];
 R6 = [newPCB + 13];
 R7 = [newPCB + 14];
 
-SP = SP + 1; 
-alias newphysicalSP S2; 
-newphysicalSP = ([PTBR + 2 * (SP / 512)] * 512) + (SP % 512); 
-[ newphysicalSP ] = [ newPCB + 4 ]; //setting IP
 
+
+SP = SP + 1;
+alias newphysicalSP S8;
+newphysicalSP = ([PTBR + 2*(SP/512)]*512) + (SP%512);
+[newphysicalSP] = [newPCB + 4]; // Stores IP field value of PCB on the disk
 [newPCB + 1] = 2;
+
 ireturn;

@@ -1,3 +1,4 @@
+
 alias Cause S0;
 Cause = EFR%10;	
 
@@ -13,24 +14,21 @@ VPagenum = [PTBR + 2*BadVAddr];
 alias physicalSP S4;
 physicalSP=([PTBR + 2*(SP/512)]*512) + (SP%512);
 
-if(Cause != 0) then
-	if(Cause == 1) then
-		print("IllegalInstrn"); 
+if (Cause != 0) then
+	if (Cause == 1) then
+		print("Illegal instruction");
 	endif;
-
-	if(Cause == 2) then
-		print("IllegalMemAcc");	
+	if (Cause == 2) then
+		print("Illegal memory access");
 	endif;
-
-	if(Cause == 3) then
-		print("ArthmcExcptn");
+	if (Cause == 3) then
+		print("Arithmetic exception");
 	endif;
-
-	if(Cause == 4) then
-		print("IllegalOpernd");
+	if (Cause == 4) then
+		print("Illegal operands");
 	endif;
-	SP = SP + 2;
-	[physicalSP + 1] = 10;
+	SP=SP+2;
+	[physicalSP + 1]=10;
 	inline "JMP 11776";
 endif;
 
@@ -54,25 +52,25 @@ while (counter < 64) do
 endwhile;
 
 alias pageIndex S7;
-pageIndex = 0;
+pageIndex=PTBR - PAGE_TABLE + 2*BadVAddr + 2;
 
 alias blockno S8;
 
 if (counter == 64) then
 	while(1) do
-
-		if(pageIndex >= 256) then
-				pageIndex = pageIndex%256;
+		if (pageIndex >= 256) then
+			pageIndex=pageIndex-256;
 		endif;
 
-		if ((pageIndex % 8) == 6) then
-			pageIndex=(pageIndex+2)%256;
+		if (pageIndex == (PTBR -PAGE_TABLE +6) ) then
+			pageIndex=pageIndex+2;
+			
 			continue;
 		endif;
 
-		if ([PAGE_TABLE+ pageIndex + 1] == "01") then
+		if ([PAGE_TABLE + pageIndex + 1] == "01") then
 			if ([MEM_LIST + [PAGE_TABLE + pageIndex]] > 1) then
-				pageIndex=(pageIndex+2)%256;
+				pageIndex=pageIndex+2;
 				continue;
 			endif;
 
@@ -101,10 +99,10 @@ if (counter == 64) then
 		endif;
 
 		if ([PAGE_TABLE + pageIndex + 1] == "11") then
-			[PAGE_TABLE + pageIndex + 1] ="01";
+			[PAGE_TABLE + pageIndex + 1]="01";
 		endif;
 
-		pageIndex=(pageIndex+2)%256;
+		pageIndex=pageIndex+2;
 	endwhile;
 endif;
 
